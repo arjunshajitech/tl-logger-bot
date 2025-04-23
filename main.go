@@ -45,7 +45,7 @@ func main() {
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Not a week day.")
 					msg.ReplyToMessageID = update.Message.MessageID
 					bot.Send(msg)
-					return
+					continue
 				}
 
 				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Logging started.")
@@ -56,13 +56,13 @@ func main() {
 				if err != nil {
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, err.Error())
 					bot.Send(msg)
-					return
+					continue
 				}
 
 				if isLoggedToday {
 					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Already logged today.")
 					bot.Send(msg)
-					return
+					continue
 				} else {
 					now := time.Now()
 					sixPM := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
@@ -70,14 +70,14 @@ func main() {
 					if !now.After(sixPM) {
 						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hey! Logging is allowed only after 6 PM.")
 						bot.Send(msg)
-						return
+						continue
 					}
 
 					err := tl.LogToday()
 					if err != nil {
 						msg := tgbotapi.NewMessage(update.Message.Chat.ID, err.Error())
 						bot.Send(msg)
-						return
+						continue
 					}
 
 					msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Logging success.")

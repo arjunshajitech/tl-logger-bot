@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  tl-logger-bot:
+    build: .
+    container_name: tl-logger-bot
+    restart: always
+    ports:
+      - "3333:3333"
