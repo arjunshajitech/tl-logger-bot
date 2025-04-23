@@ -64,7 +64,12 @@ func main() {
 					bot.Send(msg)
 					continue
 				} else {
-					now := time.Now()
+					ist, err := time.LoadLocation("Asia/Kolkata")
+					if err != nil {
+						panic(err)
+					}
+
+					now := time.Now().In(ist)
 					sixPM := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
 
 					if !now.After(sixPM) {
@@ -73,7 +78,7 @@ func main() {
 						continue
 					}
 
-					err := tl.LogToday()
+					err = tl.LogToday()
 					if err != nil {
 						msg := tgbotapi.NewMessage(update.Message.Chat.ID, err.Error())
 						bot.Send(msg)
