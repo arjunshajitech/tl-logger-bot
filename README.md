@@ -1,7 +1,11 @@
 To Run 
 
 ```
-docker compose up --build -d
+sudo chmod +x start.sh
+```
+
+```
+./start.sh
 ```
 
 Reference
