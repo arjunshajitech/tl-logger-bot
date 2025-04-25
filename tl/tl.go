@@ -1,13 +1,8 @@
 package tl
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"time"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"log"
 )
 
 const (
@@ -15,110 +10,48 @@ const (
 	Format = "2006-01-02"
 )
 
-type TL interface {
-	LoggedToday() (bool, error)
-	LogToday() error
-}
-
-type TLImpl struct {
+type Impl struct {
 	User, Token string
+	Bot         *tgbotapi.BotAPI
 }
 
-func NewTL(user, token string) *TLImpl {
-	return &TLImpl{
+func NewTL(bot *tgbotapi.BotAPI, user, token string) *Impl {
+	return &Impl{
 		User:  user,
 		Token: token,
+		Bot:   bot,
 	}
 }
 
-type Timesheet struct {
-	Begin string `json:"begin"`
+func (t *Impl) SendMessage(message string, chatID int64, replyMessageID int) {
+	msg := tgbotapi.NewMessage(chatID, message)
+	if replyMessageID != 0 {
+		msg.ReplyToMessageID = replyMessageID
+	}
+	_, err := t.Bot.Send(msg)
+	if err != nil {
+		log.Println(err.Error())
+	}
 }
 
-func (t *TLImpl) LoggedToday() (bool, error) {
-	url := "https://tl.techgentsia.com/api/timesheets"
-	req, err := http.NewRequest("GET", url, nil)
+func (t *Impl) LogToday(u tgbotapi.Update) {
+	if !isWeekday() {
+		t.SendMessage("Not a week day.", u.Message.Chat.ID, u.Message.MessageID)
+		return
+	}
+
+	t.SendMessage("Logging started.", u.Message.Chat.ID, 0)
+
+	if !isAfterSixPMInIST() {
+		t.SendMessage("Hey! Logging is allowed only after 6 PM.", u.Message.Chat.ID, 0)
+		return
+	}
+
+	err := t.processLogging()
 	if err != nil {
-		return false, err
-	}
-	req.Header.Add("X-AUTH-USER", t.User)
-	req.Header.Add("X-AUTH-TOKEN", t.Token)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, err
+		t.SendMessage(err.Error(), u.Message.Chat.ID, 0)
+		return
 	}
 
-	defer res.Body.Close()
-	body, readErr := ioutil.ReadAll(res.Body)
-	if readErr != nil {
-		return false, err
-	}
-
-	var timesheets []Timesheet
-	if err := json.Unmarshal(body, &timesheets); err != nil {
-		return false, errors.New("JSON parse error")
-	}
-
-	return loggedToday(timesheets[0].Begin)
-}
-
-func loggedToday(date string) (bool, error) {
-	t, err := time.Parse(Layout, date)
-	if err != nil {
-		return false, errors.New("Error parsing timestamp")
-	}
-	d := t.Format(Format)
-	t1 := time.Now()
-	d1 := t1.Format(Format)
-	return d == d1, nil
-}
-
-func (t *TLImpl) LogToday() error {
-	url := "https://tl.techgentsia.com/api/timesheets"
-	begin, end := generateDayTimes()
-
-	data := map[string]interface{}{
-		"begin":       begin,
-		"end":         end,
-		"project":     1,
-		"activity":    2,
-		"description": nil,
-		"tags":        "vconsol sfu",
-	}
-
-	body, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Add("X-AUTH-USER", t.User)
-	req.Header.Add("X-AUTH-TOKEN", t.Token)
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	responseBody, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Response Body: %s\n", responseBody)
-	return nil
-}
-
-func generateDayTimes() (string, string) {
-	now := time.Now()
-	// Create morning 10:00 AM and evening 6:00 PM times
-	morning := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, now.Location())
-	evening := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
-	morningStr := morning.Format("2006-01-02T15:04:05")
-	eveningStr := evening.Format("2006-01-02T15:04:05")
-	return morningStr, eveningStr
+	t.SendMessage("Congrats! Logging success.", u.Message.Chat.ID, 0)
 }

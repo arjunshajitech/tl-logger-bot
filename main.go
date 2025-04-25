@@ -1,99 +1,78 @@
 package main
 
 import (
-	"log"
-	"os"
-	"techgentsia-bot/tl"
-	"time"
-
+	"fmt"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	_ "github.com/joho/godotenv/autoload"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"techgentsia-bot/tl"
+)
+
+const (
+	BotToken   string = "BOT_TOKEN"
+	TLUserName string = "TL_USERNAME"
+	TLApiToken string = "TL_API_TOKEN"
 )
 
 func main() {
-	BotToken := os.Getenv("BOT_TOKEN")
-	if BotToken == "" {
-		panic("BOT_TOKEN not configured.")
-	}
-	TlUserName := os.Getenv("TL_USERNAME")
-	if TlUserName == "" {
-		panic("TL_USERNAME not configured.")
-	}
-	TlToken := os.Getenv("TL_API_TOKEN")
-	if TlToken == "" {
-		panic("TL_API_TOKEN not configured.")
-	}
+	log.Println("Server started...")
+	checkContainsValidEnvironment()
+	go initServer()
 
-	bot, err := tgbotapi.NewBotAPI(BotToken)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	for {
+		select {
+		case sig := <-sigChan:
+			log.Printf("Received signal: %v. Exiting...", sig)
+			return
+		}
+	}
+}
+
+func initServer() {
+	bot, err := tgbotapi.NewBotAPI(os.Getenv(BotToken))
 	if err != nil {
 		log.Panic(err)
 	}
-
 	bot.Debug = false
 
-	log.Printf("Authorized on account %s", bot.Self.UserName)
-	tl := tl.NewTL(TlUserName, TlToken)
+	log.Printf("Authorized telegram account %s", bot.Self.UserName)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
 
+	logger := tl.NewTL(bot, os.Getenv(TLUserName), os.Getenv(TLApiToken))
 	for update := range updates {
 		if update.Message != nil {
-			if update.Message.Text == "Log" {
-				if !isWeekday() {
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Not a week day.")
-					msg.ReplyToMessageID = update.Message.MessageID
-					bot.Send(msg)
-					continue
-				}
-
-				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Logging started.")
-				msg.ReplyToMessageID = update.Message.MessageID
-				bot.Send(msg)
-
-				isLoggedToday, err := tl.LoggedToday()
-				if err != nil {
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, err.Error())
-					bot.Send(msg)
-					continue
-				}
-
-				if isLoggedToday {
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Already logged today.")
-					bot.Send(msg)
-					continue
-				} else {
-					ist, err := time.LoadLocation("Asia/Kolkata")
-					if err != nil {
-						panic(err)
-					}
-
-					now := time.Now().In(ist)
-					sixPM := time.Date(now.Year(), now.Month(), now.Day(), 18, 0, 0, 0, now.Location())
-
-					if !now.After(sixPM) {
-						msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hey! Logging is allowed only after 6 PM.")
-						bot.Send(msg)
-						continue
-					}
-
-					err = tl.LogToday()
-					if err != nil {
-						msg := tgbotapi.NewMessage(update.Message.Chat.ID, err.Error())
-						bot.Send(msg)
-						continue
-					}
-
-					msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Logging success.")
-					bot.Send(msg)
-				}
+			switch update.Message.Text {
+			case "Log":
+				logger.LogToday(update)
+			case "Hello":
+				logger.SendMessage("Hello there! Yes, I’m alive and listening. How can I help you today?", update.Message.Chat.ID, update.Message.MessageID)
+			case "/help":
+				msg := `Available Commands:
+					1. Log – Log your activity for today.
+					2. Logc – Log today’s activity with a commit message from the project you configured.
+					3. Hello – Check if I’m alive!`
+				logger.SendMessage(msg, update.Message.Chat.ID, update.Message.MessageID)
+			default:
+				logger.SendMessage("Oops! I didn’t recognize that command. Try /help to see what I can do!", update.Message.Chat.ID, update.Message.MessageID)
 			}
 		}
 	}
 }
 
-func isWeekday() bool {
-	weekday := time.Now().Weekday()
-	return weekday != time.Saturday && weekday != time.Sunday
+func checkContainsValidEnvironment() {
+	requiredVars := []string{BotToken, TLUserName, TLApiToken}
+	for _, env := range requiredVars {
+		if os.Getenv(env) == "" {
+			panic(fmt.Sprintf("%s not configured.", env))
+		}
+	}
 }
