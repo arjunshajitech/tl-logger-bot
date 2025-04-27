@@ -10,20 +10,20 @@ const (
 	Format = "2006-01-02"
 )
 
-type Impl struct {
+type CustomLogger struct {
 	User, Token string
 	Bot         *tgbotapi.BotAPI
 }
 
-func NewTL(bot *tgbotapi.BotAPI, user, token string) *Impl {
-	return &Impl{
+func NewTL(bot *tgbotapi.BotAPI, user, token string) *CustomLogger {
+	return &CustomLogger{
 		User:  user,
 		Token: token,
 		Bot:   bot,
 	}
 }
 
-func (t *Impl) SendMessage(message string, chatID int64, replyMessageID int) {
+func (t *CustomLogger) SendMessage(message string, chatID int64, replyMessageID int) {
 	msg := tgbotapi.NewMessage(chatID, message)
 	if replyMessageID != 0 {
 		msg.ReplyToMessageID = replyMessageID
@@ -34,7 +34,7 @@ func (t *Impl) SendMessage(message string, chatID int64, replyMessageID int) {
 	}
 }
 
-func (t *Impl) LogToday(u tgbotapi.Update) {
+func (t *CustomLogger) LogToday(u tgbotapi.Update) {
 	if !isWeekday() {
 		t.SendMessage("Not a week day.", u.Message.Chat.ID, u.Message.MessageID)
 		return

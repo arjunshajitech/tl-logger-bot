@@ -12,7 +12,7 @@ type Timesheet struct {
 	Begin string `json:"begin"`
 }
 
-func (t *Impl) processLogging() error {
+func (t *CustomLogger) processLogging() error {
 	url := "https://tl.techgentsia.com/api/timesheets"
 	begin, end := generateDayTimes()
 
@@ -51,7 +51,7 @@ func (t *Impl) processLogging() error {
 	return nil
 }
 
-func (t *Impl) loggedToday() (bool, error) {
+func (t *CustomLogger) loggedToday() (bool, error) {
 	url := "https://tl.techgentsia.com/api/timesheets"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
