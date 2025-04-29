@@ -2,19 +2,15 @@ To Run
 
 ```
 sudo chmod +x start.sh
+sudo chmod +x stop.sh
 ```
 
+### Start
 ```
 ./start.sh
 ```
 
-Reference
-
+### Stop
 ```
-https://github.com/go-telegram-bot-api/telegram-bot-api
+./stop.sh
 ```
-
-```
-https://tl.techgentsia.com/api/doc
-```
-
