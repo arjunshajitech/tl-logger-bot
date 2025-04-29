@@ -34,7 +34,7 @@ func (t *CustomLogger) SendMessage(message string, chatID int64, replyMessageID 
 	}
 }
 
-func (t *CustomLogger) LogToday(u tgbotapi.Update) {
+func (t *CustomLogger) LogToday(u tgbotapi.Update, msgString string) {
 	if !isWeekday() {
 		t.SendMessage("Not a week day.", u.Message.Chat.ID, u.Message.MessageID)
 		return
@@ -47,7 +47,7 @@ func (t *CustomLogger) LogToday(u tgbotapi.Update) {
 		return
 	}
 
-	err := t.processLogging()
+	err := t.processLogging(msgString)
 	if err != nil {
 		t.SendMessage(err.Error(), u.Message.Chat.ID, 0)
 		return

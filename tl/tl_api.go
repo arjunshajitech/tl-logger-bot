@@ -12,7 +12,7 @@ type Timesheet struct {
 	Begin string `json:"begin"`
 }
 
-func (t *CustomLogger) processLogging() error {
+func (t *CustomLogger) processLogging(desc string) error {
 	url := "https://tl.techgentsia.com/api/timesheets"
 	begin, end := generateDayTimes()
 
@@ -21,7 +21,7 @@ func (t *CustomLogger) processLogging() error {
 		"end":         end,
 		"project":     1,
 		"activity":    2,
-		"description": nil,
+		"description": desc,
 		"tags":        "vconsol sfu",
 	}
 
